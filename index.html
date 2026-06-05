@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>洛克王国 - 远行商人商品订阅</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 480px;
+            width: 100%;
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #f39c12, #e74c3c);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 { font-size: 24px; margin-bottom: 8px; }
+        .header p { font-size: 14px; opacity: 0.9; }
+        .body { padding: 30px; }
+        .info {
+            background: #fff3cd;
+            border-left: 4px solid #f39c12;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 25px;
+            font-size: 14px;
+            color: #856404;
+            line-height: 1.6;
+        }
+        .form-group { margin-bottom: 20px; }
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 14px;
+        }
+        .form-group select, .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 15px;
+            transition: border-color 0.3s;
+            outline: none;
+            background: #fafafa;
+        }
+        .form-group select:focus, .form-group input:focus {
+            border-color: #667eea;
+            background: white;
+        }
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(102,126,234,0.4); }
+        .btn:active { transform: translateY(0); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .result {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            text-align: center;
+            display: none;
+        }
+        .result.success { background: #d4edda; color: #155724; display: block; }
+        .result.error { background: #f8d7da; color: #721c24; display: block; }
+        .result.loading { background: #cce5ff; color: #004085; display: block; }
+        .stats {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 13px;
+            color: #999;
+        }
+        .howto {
+            margin-top: 25px;
+            padding: 15px;
+            background: #f0f4ff;
+            border-radius: 10px;
+            font-size: 13px;
+            line-height: 1.8;
+            color: #555;
+        }
+        .howto strong { color: #667eea; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>远行商人商品订阅</h1>
+            <p>洛克王国 · 商品更新自动推送</p>
+        </div>
+        <div class="body">
+            <div class="info">
+                每日 <strong>8:00 / 12:00 / 16:00 / 20:00</strong> 自动推送<br>
+                当远行商人上架新商品时，您将收到通知
+            </div>
+
+            <form id="subscribeForm">
+                <div class="form-group">
+                    <label>选择推送方式</label>
+                    <select name="push_type" id="push_type" required>
+                        <option value="notifyme">NotifyMe（推荐）</option>
+                        <option value="bark">BARK（iOS）</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label id="pushIdLabel">NotifyMe UUID</label>
+                    <input type="text" name="push_id" id="push_id"
+                           placeholder="请输入您的 NotifyMe UUID"
+                           required>
+                </div>
+                <button type="submit" class="btn" id="submitBtn">立即订阅</button>
+            </form>
+
+            <div class="result" id="result"></div>
+            <div class="stats" id="stats"></div>
+
+            <div class="howto">
+                <strong>如何获取推送ID？</strong><br>
+                NotifyMe: 打开 App → 点击右下角「我的」→「获取UUID」<br>
+                BARK:   App Store 下载 BARK → 首页复制 Key
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== 配置区域 — 部署时修改这里 ==========
+        var API_BASE = 'https://roco-gilevofsgv.cn-hangzhou.fcapp.run';
+
+        var push_type = document.getElementById('push_type');
+        var pushIdLabel = document.getElementById('pushIdLabel');
+        var push_id = document.getElementById('push_id');
+        var result = document.getElementById('result');
+        var stats = document.getElementById('stats');
+        var submitBtn = document.getElementById('submitBtn');
+
+        push_type.onchange = function() {
+            if (push_type.value === 'notifyme') {
+                pushIdLabel.textContent = 'NotifyMe UUID';
+                push_id.placeholder = '请输入您的 NotifyMe UUID';
+            } else {
+                pushIdLabel.textContent = 'BARK Key';
+                push_id.placeholder = '请输入您的 BARK Key';
+            }
+        };
+
+        function show(msg, type) {
+            result.textContent = msg;
+            result.className = 'result ' + type;
+        }
+
+        document.getElementById('subscribeForm').onsubmit = function(e) {
+            e.preventDefault();
+            var data = {
+                push_type: push_type.value,
+                push_id: push_id.value.trim()
+            };
+
+            if (!data.push_id) {
+                show('请输入推送ID', 'error');
+                return;
+            }
+
+            show('提交中...', 'loading');
+            submitBtn.disabled = true;
+
+            fetch(API_BASE + '/api/subscribe', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(r) {
+                if (r.success) {
+                    show(r.message, 'success');
+                    push_id.value = '';
+                } else {
+                    show(r.message, 'error');
+                }
+                submitBtn.disabled = false;
+            })
+            .catch(function(err) {
+                show('网络错误，请稍后重试', 'error');
+                submitBtn.disabled = false;
+            });
+        };
+
+        // 加载订阅人数
+        fetch(API_BASE + '/api/subscribers')
+            .then(function(r) { return r.json(); })
+            .then(function(r) {
+                if (r.success) {
+                    stats.textContent = '已有 ' + r.count + ' 人订阅';
+                }
+            })
+            .catch(function() {});
+    </script>
+</body>
+</html>
